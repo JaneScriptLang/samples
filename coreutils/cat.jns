@@ -1,0 +1,11 @@
+#include <fs>
+#include <process>
+#include <stdlib>
+
+if not len(process.args) == 2{
+    puts("Usage: cat source..");
+    process.exit(1);
+}
+
+fin = ReadFile(process.args[1]);
+printf("%", (fin,));

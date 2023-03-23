@@ -1,0 +1,12 @@
+#include <fs>
+#include <process>
+#include <stdlib>
+
+if not len(process.args) == 2{
+    puts("Usage: seq [range]...");
+    process.exit(1);
+}
+
+for i=1 until int(process.args[1])+1 step 1{
+    puts(i);
+}

@@ -1,0 +1,10 @@
+#include <process>
+#include <stdlib>
+from native reference time;
+
+if not len(process.args) == 2{
+    puts("Usage: sleep [amount]...");
+    process.exit(1);
+}
+
+time.sleep(int(process.args[1]));

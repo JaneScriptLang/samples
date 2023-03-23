@@ -1,0 +1,7 @@
+#include <process>
+#include <stdlib>
+#include <os>
+
+for _=0 until len(process.environ.keys()) step 1{
+    printf("%=%\n", (list(process.environ.keys())[_], process.environ[list(process.environ.keys())[_]]));
+}
