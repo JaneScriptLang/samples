@@ -1,0 +1,181 @@
+#include <process>
+#include <stdlib>
+#include <fs>
+#include <os>
+#include <timedatelib>
+#include <udb>
+#include <array>
+from native reference zipfile;
+from native reference pickle;
+from native reference builtins;
+from native reference uuid;
+from native reference getpass;
+
+fn configuser(){
+db = opendb(".neon/objects.conf/history");
+if(db["config"].get("user.name")){
+return db["config"].get("user.name");
+}
+return getpass.getuser();
+}
+
+structure Commit{
+    fn __init__(this, branch: Branch, files, label, user=configuser()){
+        db = opendb(".neon/objects.conf/history");
+        this.files = files;
+        this.branch = branch;
+        this.uuid = uuid.uuid();
+        this.label = label;
+        this.praise = user;
+        if(not "commit" in db){
+            db["commit"] = {"commits":[], "current":this.id\};
+        }
+        db["commit"]["commits"].append(this);
+        db["commit"]["current"] = this.id;
+
+    }
+}
+
+structure Branch{
+    fn __init__(this, name, files=[]){
+        this.files = files;
+        this.name = name;
+    }
+}
+
+structure File{
+    fn __init__(this, name, content){
+        this.name = name;
+        this.content = content;
+    }
+}
+
+
+fn stashone(file){
+    if(os.path.exists(".neon/overhead.conf/stash.dat")){
+        oh = builtins.open(".neon/overhead.conf/stash.dat", "rb+");
+        }
+    else{
+        oh = None;
+        }
+    if (oh){
+        headstash = pickle.load(oh);
+    }
+    else{ 
+        headstash = Branch("OverHead");
+    }
+    headstash.files.append(file);
+    fob = builtins.open(".neon/overhead.conf/stash.dat", "wb+");
+    pickle.dump(headstash, fob);
+}
+
+fn unstash(){
+if(os.path.exists(".neon/overhead.conf/stash.dat")){
+oh = builtins.open(".neon/overhead.conf/stash.dat", "rb+");
+}
+else{
+return print("No Stash Files in Overhead, did you really 'neon stash' them?");
+}
+if (oh){
+headstash = pickle.load(oh);
+}
+for i=0 until end(headstash.files)-1 step 1{
+        file = headstash.files[i];
+        open(file.name,"wb+").write(file.content);
+    }
+}
+
+
+
+fn stash(files){
+    for i=0 until end(files)-1 step 1{
+        if(os.path.isdir(files[i])){
+            if(files[i] == ".neon"){
+                files.pop(i);
+                continue;
+            }
+            files[i] = ObjDir(files[i]);
+        } 
+        else{ 
+        files[i] = File(files[i], open(files[i],"rb").read());
+        }
+    }
+foreach(files, stashone);
+}
+
+fn add(files){
+db = opendb(".neon/objects.conf/cfdb.dat");
+branchname = db["branch"]["current"];
+branch = pickle.load(builtins.open(format(".neon/objects.conf/%.branch.dat", (branchname, )), "rb+"));
+for i=0 until end(files)-1 step 1{
+if(os.path.isdir(files[i])){
+if(files[i] == ".neon"){
+files.pop(i);
+continue;
+}
+files[i] = ObjDir(files[i]);
+} 
+else{ 
+files[i] = File(files[i], open(files[i],"rb").read());
+branch.files.append(files[i]);
+}
+}
+filename = format(".neon/objects.conf/%.branch.dat", (branchname, ));
+fob = builtins.open(filename, "wb+");
+pickle.dump(branch, fob);
+}
+
+fn commit(label){
+    printf("Decompressing Branch...\n");
+    branchname = db["branch"]["current"];
+    branch = pickle.load(builtins.open(format(".neon/objects.conf/%.branch.dat", (branchname, )), "rb+"));
+    printf("Writing Objects...\n");
+    Commit(branch, branch.files, label);
+}
+
+fn init(name, branchname="root"){
+    MkDir(".neon");
+    MkDir(".neon/hooks.conf");
+    MkDir(".neon/objects.conf");
+    MkDir(".neon/overhead.conf");
+    printf("Initialized new, empty Neon Repository in %\n", (os.getcwd(),));
+    b = Branch(branchname);
+
+    filename = format(".neon/objects.conf/%.branch.dat", (branchname, ));
+    fob = builtins.open(filename, "wb+");
+    pickle.dump(b, fob);
+    db = opendb(".neon/objects.conf/cfdb.dat");
+    db["branch"] = {"main":branchname, "current":branchname, "name":name\};
+    db["config"] = {"user.addr":"neon@127.0.0.1"\};
+}
+
+
+if(process.args[1] == "init"){
+    if(len(process.args) == 3){
+        init(process.args[2]);
+    }
+    else{
+        init(os.path.basename(os.getcwd()));
+    }
+}
+elif (process.args[1] == "stash"){
+    if(len(process.args) == 3){
+        stash(os.listdir(process.args[2]));
+    }
+    else{
+        stash(os.listdir(os.path.abspath(os.getcwd())));
+    }
+}
+
+elif (process.args[1] == "pull"){
+    if(len(process.args) == 3 and process.args[2] == "--from-overhead"){
+        unstash();
+    }
+}
+
+
+elif (process.args[1] == "stage"){
+    if(len(process.args) > 2){
+        add(process.args[2:]);
+    }
+}
