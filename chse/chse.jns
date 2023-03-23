@@ -1,0 +1,73 @@
+from native reference requests;
+from native reference pprint;
+#include <process>
+#include <stdlib>
+
+method = "GET";
+redirects = False;
+silent = False;
+show_headers = True;
+binary = False;
+show_error = True;
+
+for i=0 until end(process.args) step 1{
+arg = process.args[i];
+if(arg.startswith("-")){
+for j=0 until end(arg) step 1{
+cmd = arg[j];
+if(cmd == "X"){
+method = "POST";
+}
+else if(cmd == "r") {
+redirects = True;
+} 
+else if(cmd == "H") {
+show_headers = False;
+} 
+else if(cmd == "G") {
+method = "GET";
+}
+else if(cmd == "s"){
+silent = True;
+show_error = False;
+}
+else if(cmd == "S"){
+show_error = True;
+}
+else if(cmd == "R"){
+binary = True;
+}
+}
+}
+else{
+url = arg;
+}
+}
+
+try{
+if(not silent){
+print(format("Resolving Host %...\n", (url, )));
+}
+resp = requests.request(method, url, allow_redirects=redirects);
+if(show_headers) {
+print("BEGIN HEADERS");
+pprint.pprint(dict(resp.headers));
+print("END HEADERS");
+}
+if(binary){
+print("BEGIN RAW BINARY DATA");
+print(resp.content);
+print("END RAW BINARY DATA");
+}
+else{
+
+print("BEGIN RESPONSE TEXT");
+print(resp.text);
+print("END RESPONSE TEXT");
+}
+}
+except Exception as exc{
+if(show_error){
+print(exc);
+}
+}
